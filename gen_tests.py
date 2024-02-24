@@ -17,8 +17,8 @@ for f in sorted(glob.iglob("notebank_templates/*.png")):
 	images.append(Image.open(f).convert('RGBA'))
 nb_value = [1, 1, 2, 2, 5, 5, 10, 10, 20, 20, 50, 50, 100, 100, 200, 200, 500, 500]
 
-class WaveDeformer:
 
+class WaveDeformer:
 	def transform(self, x, y, strength):
 		y = y + strength*math.sin(x/40)
 		return x, y
@@ -39,12 +39,8 @@ class WaveDeformer:
 		source_grid = [self.transform_rectangle(*rect, strength) for rect in target_grid]
 		return [t for t in zip(target_grid, source_grid)]
 
-
-
-
 def distort_randomly(im):
 	return ImageOps.deform(im, WaveDeformer())
-
 
 def rotate_randomly(im):
 	return im.rotate(random.randint(0, 360), expand=True)
@@ -57,7 +53,6 @@ def paste_randomly(base, layer, is_clipping=False):
 	off_y_min = -1*l_height//2 if is_clipping else 0
 	off_y_max = b_height - l_height//2 if is_clipping else b_height - l_height
 	base.paste(layer, (random.randint(off_x_min, off_x_max), random.randint(off_y_min, off_y_max)), mask=layer)
-
 
 def gradify(im, m_color, gradient_magnitude=1.0, reverse=False):
 	if im.mode != 'RGBA':
@@ -74,18 +69,35 @@ def gradify(im, m_color, gradient_magnitude=1.0, reverse=False):
 
 	return gradient_im
 
+
+def random_list_with_fixed_sum(size, sum):
+	p = []
+	for _ in range(size):
+		p.append(random.randint(0, sum))
+	p.append(sum)
+	p = sorted(p)
+
+	a = [None] * size
+	a[0] = p[0]
+	for i in range(1, size):
+		a[i] = p[i] - p[i - 1]
+
+	return a
+
+
+sz = random.randint(16, 32)
+cnt = random_list_with_fixed_sum(18, sz)
+
 total_value = 0
 
-print(len(images))
-sz = random.randint(8, 28)
-for i in range(0, sz):
-	idx_chosen = random.randint(0, len(images) - 1)
-	im_chosen = images[idx_chosen]
-	value = nb_value[idx_chosen]
-	rotated_im_chosen = rotate_randomly(im_chosen)
-	distorted_im = distort_randomly(rotated_im_chosen)
-	paste_randomly(im1, distorted_im, True)
-	total_value += value
+for i in range(18):
+	img = images[i]
+	value = nb_value[i]
+	for _ in range(cnt[i]):
+		rotated_img = rotate_randomly(img)
+		distorted_im = distort_randomly(rotated_img)
+		paste_randomly(im1, distorted_im, True)
+		total_value += value
 
 print(total_value)
 
