@@ -11,7 +11,6 @@ import math
 
 random.seed(time.time())
 
-im1 = Image.open(background_img_path)
 images = []
 for f in sorted(glob.iglob("notebank_templates/*.png")):
 	image = Image.open(f).convert('RGBA')
@@ -108,8 +107,9 @@ for i in range(8192):
 	background = backgrounds[ random.randint(0, len(backgrounds) - 1) ].copy()
 
 	total_value = 0
-	sz = random.randint(24, 24)
-	cnt = random_list_with_fixed_sum(len(images), sz)
+	sz = random.randint(25, 25)
+	# Banknotes of higher value appear less frequently!
+	cnt = sorted(random_list_with_fixed_sum(len(images), sz))[::-1]
 
 	print(cnt)
 
