@@ -1,4 +1,7 @@
+# Not meant to be maintainable :(
+
 from PIL import Image, ImageDraw, ImageFilter, ImageOps
+import numpy as np
 
 import random
 import glob
@@ -6,15 +9,24 @@ import time
 import math
 # VARS
 
-background_img_path = "third_party/background.jpg"
+random.seed(time.time())
 
 im1 = Image.open(background_img_path)
 images = []
-
-random.seed(time.time())
-
 for f in sorted(glob.iglob("notebank_templates/*.png")):
-	images.append(Image.open(f).convert('RGBA'))
+	image = Image.open(f).convert('RGBA')
+	img_width, img_height = image.size
+	aspect_ratio = (img_width / img_height)
+	width = 320
+	height = int(width / aspect_ratio)
+	image = image.resize((width, height))
+	images.append(image)
+
+backgrounds = []
+for f in sorted(glob.iglob("backgrounds/*.jpg")):
+	image = Image.open(f)
+	backgrounds.append(image)
+
 nb_value = [1, 1, 2, 2, 5, 5, 10, 10, 20, 20, 50, 50, 100, 100, 200, 200, 500, 500]
 
 
@@ -45,14 +57,21 @@ def distort_randomly(im):
 def rotate_randomly(im):
 	return im.rotate(random.randint(0, 360), expand=True)
 
-def paste_randomly(base, layer, is_clipping=False):
+def paste_randomly(base, layer, off_x, off_y):
 	b_width, b_height = base.size
 	l_width, l_height = layer.size
-	off_x_min = -1*l_width//2 if is_clipping else 0
-	off_x_max = b_width - l_width//2 if is_clipping else b_width - l_width
-	off_y_min = -1*l_height//2 if is_clipping else 0
-	off_y_max = b_height - l_height//2 if is_clipping else b_height - l_height
-	base.paste(layer, (random.randint(off_x_min, off_x_max), random.randint(off_y_min, off_y_max)), mask=layer)
+	off_x_min = off_x
+	off_x_max = off_x_min + int(l_width * 2)
+	off_y_min = off_y
+	off_y_max = off_y_min + l_height // 8
+	off_x_next = random.randint(off_x_min, off_x_max)
+	off_y_next = random.randint(off_y_min, off_y_max)
+	if off_x_next > b_width - l_width:
+		off_x_next = 0
+		off_y_next += 64
+	base.paste(layer, (off_x_next, off_y_next), mask=layer)
+	off_x_next += l_width // 2
+	return off_x_next, off_y_next
 
 def gradify(im, m_color, gradient_magnitude=1.0, reverse=False):
 	if im.mode != 'RGBA':
@@ -61,7 +80,7 @@ def gradify(im, m_color, gradient_magnitude=1.0, reverse=False):
 	gradient = Image.new('L', (1, height), color=0xFF)
 	for x in range(height):
 		# gradient.putpixel((x, 0), 255-x)
-		gradient.putpixel((0, x), int(150 * (1 - gradient_magnitude * (height - float(x) if reverse else float(x))/height)))
+		gradient.putpixel((0, x), int(128 * (1 - gradient_magnitude * (height - float(x) if reverse else float(x))/height)))
 	alpha = gradient.resize(im.size)
 	black_im = Image.new('RGBA', (width, height), color=m_color) # i.e. black	  
 	black_im.putalpha(alpha)
@@ -84,25 +103,33 @@ def random_list_with_fixed_sum(size, sum):
 
 	return a
 
+begin = 4
+for i in range(8192):
+	background = backgrounds[ random.randint(0, len(backgrounds) - 1) ].copy()
 
-sz = random.randint(16, 32)
-cnt = random_list_with_fixed_sum(18, sz)
+	total_value = 0
+	sz = random.randint(24, 24)
+	cnt = random_list_with_fixed_sum(len(images), sz)
 
-total_value = 0
+	print(cnt)
 
-for i in range(18):
-	img = images[i]
-	value = nb_value[i]
-	for _ in range(cnt[i]):
-		rotated_img = rotate_randomly(img)
-		distorted_im = distort_randomly(rotated_img)
-		paste_randomly(im1, distorted_im, True)
-		total_value += value
+	off_x_min = 0
+	off_y_min = 0
+	for i in range(len(images)):
+		for _ in range(cnt[i]):
+			img = images[i].copy()
+			value = nb_value[i]
+			rotated_img = rotate_randomly(img)
+			distorted_im = distort_randomly(rotated_img)
+			off_x_min, off_y_min = paste_randomly(background, distorted_im, off_x_min, off_y_min)
+			total_value += value
 
-print(total_value)
+	print(total_value)
 
+	# background = gradify(background, ( random.randint(0, 255), random.randint(0, 255), random.randint(0, 255) ))
+	# background = gradify(background, ( random.randint(0, 255), random.randint(0, 255), random.randint(0, 255) ), 1.0, True)
 
-gradient_img = gradify(im1, (0, 0, 0))
-gradient_img = gradify(gradient_img, (255, 255, 255), 1.0, True)
-
-gradient_img.show()
+	background.show()
+	# dir = "./subtask1/" + '{:02}'.format(begin + i) + ".jpg"
+	# os.system("touch " + dir)
+	# image = image.save(dir)
