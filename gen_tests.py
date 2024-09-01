@@ -31,7 +31,6 @@ for f in sorted(glob.iglob("backgrounds/*.jpg")):
 
 nb_value = [1, 1, 2, 2, 5, 5, 10, 10, 20, 20, 50, 50, 100, 100, 200, 200, 500, 500]
 
-
 class WaveDeformer:
     def transform(self, x, y, strength):
         y = y + strength*math.sin(x/40)
@@ -72,8 +71,9 @@ def paste_randomly(base, layer, off_x, off_y):
         off_x_next = 0
         off_y_next += 64
     base.paste(layer, (off_x_next, off_y_next), mask=layer)
+    coords = (off_x_next, off_y_next, off_x_next + layer.width, off_y_next + layer.height)
     off_x_next += l_width // 2
-    return off_x_next, off_y_next
+    return off_x_next, off_y_next, coords
 
 def gradify(im, m_color, gradient_magnitude=1.0, reverse=False):
     if im.mode != 'RGBA':
@@ -126,13 +126,13 @@ for i in range(N_IMAGES):
     for i, img in enumerate(images):
         for _ in range(cnt[i]):
             rotated_img = rotate_randomly(img)
-            distorted_im = distort_randomly(rotated_img)
-            off_x_old, off_y_old = off_x, off_y
-            off_x, off_y = paste_randomly(background, distorted_im, off_x, off_y)
+            distorted_img = distort_randomly(rotated_img)
+            off_x, off_y, coords = paste_randomly(background, distorted_img, off_x, off_y)
             value = nb_value[i]
             total_value += value
             with open(labels_detection_dir, "a") as f:
-                f.write(f"{value * 1000} {off_x_old} {off_y_old} {off_x} {off_y}\n")
+                x0, y0, x1, y1 = coords
+                f.write(f"{value * 1000} {x0} {y0} {x1} {y1}\n")
 
     with open(labels_dir, "a") as f:
         f.write(f"{filename},{total_value * 1000}\n")
